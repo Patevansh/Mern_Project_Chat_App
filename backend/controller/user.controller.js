@@ -1,6 +1,6 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcrypt";
-import createTokenAndSaveCookie from '../jwt/generateToken.js'
+import createTokenAndSaveCookie from "../jwt/generateToken.js";
 export const signup = async (req, res) => {
   try {
     const { name, email, password, confirmpassword } = req.body;
@@ -24,45 +24,68 @@ export const signup = async (req, res) => {
 
     await newUser.save();
 
-    if (newUser){
-        createTokenAndSaveCookie(newUser._id,res);
-        res.status(201).json({ message: "User registered successfully" ,newUser});
-
+    if (newUser) {
+      createTokenAndSaveCookie(newUser._id, res);
+      res.status(201).json({
+        message: "User registered successfully",
+        user: {
+          _id: newUser._id,
+          name: newUser.name,
+          email: newUser.email,
+        },
+      });
     }
-    
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-export const login=async(req,res)=>{
-  const {email,password}=req.body;
+export const login = async (req, res) => {
+  const { email, password } = req.body;
   try {
-    
-    const user=await User.findOne({email});
-    const ismatch=await bcrypt.compare(password,user.password);
-    if(!user || !ismatch){
-      res.status(404).json({message:"Invalid user or password"});
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Invalid user or password" });
     }
-    createTokenAndSaveCookie(user._id,res);
-    res.status(201).json({message:"User logged in successfully ",user:{
-      _id:user._id,
-      name:user.name,
-      email:user.email
-    }})
+    const ismatch = await bcrypt.compare(password, user.password);
+    if (!ismatch) {
+      return res.status(404).json({ message: "Invalid user or password" });
+    }
+    createTokenAndSaveCookie(user._id, res);
+    res.status(201).json({
+      message: "User logged in successfully ",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-export const logout=async (req,res) => {
+export const logout = async (req, res) => {
   try {
-    res.clearCookie('jwt');
-    res.status(200).json({message:"User logged out"})
+    res.clearCookie("jwt");
+    res.status(200).json({ message: "User logged out" });
   } catch (error) {
     console.log(error);
-    res.status(500).json({message:"Server error"});
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getUserProfile = async (req, res) => {
+  try {
+    const loggedInUser = req.user._id;
+    const allUsers = await User.find({ _id: { $ne: loggedInUser }}).select(
+      "-password"
+    );
+    res.status(200).json(allUsers);
+  } catch (error) {
+    console.error("Error in allUser", error);
+    res.status(500).json({ message: "Server error in getUser" });
   }
 };
